@@ -1,14 +1,18 @@
 package br.com.rinha.dto;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-@Data
-@Builder
-public class TransactionResource {
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class TransactionResource implements Serializable {
 
     private String correlationId;
     private BigDecimal amount;
+    private LocalDateTime requestedAt;
 }
