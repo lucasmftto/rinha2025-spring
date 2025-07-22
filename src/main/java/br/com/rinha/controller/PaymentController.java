@@ -1,6 +1,8 @@
 package br.com.rinha.controller;
 
+import br.com.rinha.dto.PaymentsSummary;
 import br.com.rinha.dto.TransactionResource;
+import br.com.rinha.service.PaymentTransactionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -24,6 +26,9 @@ public class PaymentController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private PaymentTransactionService service;
+
     @PostMapping(path = "/payments", consumes = "application/json", produces = "application/json")
     public ResponseEntity<Void> newTransaction(@RequestBody @Valid TransactionResource transactionResource) throws JsonProcessingException {
         redisTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(transactionResource));
@@ -32,9 +37,13 @@ public class PaymentController {
     }
 
     @GetMapping("/payments-summary")
-    public ResponseEntity<Void> getPaymentsSummary(@RequestParam(name = "from") String from,
+    public ResponseEntity<PaymentsSummary> getPaymentsSummary(@RequestParam(name = "from") String from,
                                                    @RequestParam(name = "to") String to) {
+
+        PaymentsSummary transactionsByDateRange =
+                this.service.getTransactionsByDateRange(LocalDateTime.now().minusYears(7),
+                        LocalDateTime.now().plusDays(1));
         System.out.println("Summary!!!!");
-        return ResponseEntity.status(HttpStatus.OK).build();
+        return ResponseEntity.status(HttpStatus.OK).body(transactionsByDateRange);
     }
 }

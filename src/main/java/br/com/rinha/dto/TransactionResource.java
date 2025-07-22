@@ -15,4 +15,5 @@ public class TransactionResource implements Serializable {
     private String correlationId;
     private BigDecimal amount;
     private LocalDateTime requestedAt;
+    private String processorBy;
 }

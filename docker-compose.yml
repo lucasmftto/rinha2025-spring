@@ -18,9 +18,9 @@ services:
       - SPRING_THREADS_VIRTUAL_ENABLED_MANUALLY=false
       - SPRING_RESOURCES_CHAIN_ENABLED=true
       - JAVA_OPTS=-Xms108m -Xmx128m
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - SPRING_REDIS_PASSWORD=123asd
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=123asd
 
     ulimits:
       nofile:
@@ -53,9 +53,9 @@ services:
       - SPRING_THREADS_VIRTUAL_ENABLED_MANUALLY=false
       - SPRING_RESOURCES_CHAIN_ENABLED=true
       - JAVA_OPTS=-Xms108m -Xmx128m
-      - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
-      - SPRING_REDIS_PASSWORD=123asd
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_DATA_REDIS_PASSWORD=123asd
 
     ulimits:
       nofile:

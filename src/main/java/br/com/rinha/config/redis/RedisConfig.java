@@ -1,4 +1,4 @@
-package br.com.rinha.config;
+package br.com.rinha.config.redis;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
