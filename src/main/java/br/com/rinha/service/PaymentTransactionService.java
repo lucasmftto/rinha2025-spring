@@ -1,5 +1,6 @@
 package br.com.rinha.service;
 
+import br.com.rinha.config.external.PaymentProcessorDefaultClient;
 import br.com.rinha.dto.PaymentsSummary;
 import br.com.rinha.dto.TransactionResource;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,15 +25,21 @@ public class PaymentTransactionService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private PaymentProcessorDefaultClient defaultClient;
+
     public void processTransaction(TransactionResource transaction) throws JsonProcessingException {
         // TODO Add resquest for payment processor
+        transaction.setRequestedAt(LocalDateTime.now());
+        transaction.setProcessorBy("default");
+
+        defaultClient.processPayment(transaction);
 
         this.saveTransaction(transaction);
     }
 
     private void saveTransaction(TransactionResource transaction) throws JsonProcessingException {
-        transaction.setRequestedAt(LocalDateTime.now());
-        transaction.setProcessorBy("default");
+
         // Salvar transação
         long timestamp = transaction.getRequestedAt().toEpochSecond(ZoneOffset.UTC);
         redisTemplate.opsForZSet().add("transactions", objectMapper.writeValueAsString(transaction), timestamp);
