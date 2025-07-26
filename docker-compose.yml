@@ -9,6 +9,9 @@ services:
       dockerfile: DockerfileApi.dev
     hostname: api01
     platform: linux/arm64
+    networks:
+      - backend
+      - payment-processor
     environment:
       - DB_HOSTNAME=db
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/rinha
@@ -21,6 +24,8 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=123asd
+      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
 
     ulimits:
       nofile:
@@ -36,14 +41,17 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.6"
-          memory: "205MB"
+          cpus: "0.5"
+          memory: "125MB"
 
   api02:
     # Essa sintaxe reusa o que foi declarado em 'api01'.
     <<: *api
     hostname: api02
     platform: linux/arm64
+    networks:
+      - backend
+      - payment-processor
     environment:
       - DB_HOSTNAME=db
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/rinha
@@ -56,6 +64,8 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=123asd
+      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
 
     ulimits:
       nofile:
@@ -67,6 +77,9 @@ services:
   nginx:
     image: nginx:latest
     platform: linux/arm64
+    networks:
+      - backend
+      - payment-processor
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -89,6 +102,9 @@ services:
   redis:
       image: redis:7-alpine
       platform: linux/arm64
+      networks:
+        - backend
+        - payment-processor
       hostname: redis
       command: [ "redis-server", "--requirepass", "123asd" ]
       ports:
@@ -100,7 +116,7 @@ services:
       deploy:
         resources:
           limits:
-            cpus: "0.3"
+            cpus: "0.6"
             memory: "50MB"
 
 
