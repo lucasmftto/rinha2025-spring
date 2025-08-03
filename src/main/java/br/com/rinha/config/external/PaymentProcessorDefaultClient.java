@@ -5,7 +5,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "PaymentProcessorDefault", url = "${payment.processor.default.url:http://localhost:8001}")
+@FeignClient(name = "PaymentProcessorDefault", url = "${payment.processor.default.url:http://localhost:8001}",
+        configuration = FeignClientConfig.class)
 public interface PaymentProcessorDefaultClient {
 
     @PostMapping("/payments")

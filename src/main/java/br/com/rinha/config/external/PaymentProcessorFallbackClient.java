@@ -5,7 +5,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "PaymentProcessorFallback", url = "${payment.processor.fallback.url:http://localhost:8002}")
+@FeignClient(name = "PaymentProcessorFallback", url = "${payment.processor.fallback.url:http://localhost:8002}",
+        configuration = FeignClientConfig.class)
 public interface PaymentProcessorFallbackClient {
 
     @PostMapping("/payments")

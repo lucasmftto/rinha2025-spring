@@ -1,6 +1,7 @@
 package br.com.rinha.service;
 
 import br.com.rinha.config.external.PaymentProcessorDefaultClient;
+import br.com.rinha.config.external.PaymentProcessorFallbackClient;
 import br.com.rinha.dto.PaymentsSummary;
 import br.com.rinha.dto.TransactionResource;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,62 +29,100 @@ public class PaymentTransactionService {
     @Autowired
     private PaymentProcessorDefaultClient defaultClient;
 
+    @Autowired
+    private PaymentProcessorFallbackClient fallbackClient;
+
     public void processTransaction(TransactionResource transaction) throws JsonProcessingException {
         // TODO Add resquest for payment processor
         transaction.setRequestedAt(LocalDateTime.now());
         transaction.setProcessorBy("default");
 
-        defaultClient.processPayment(transaction);
+        try {
+            defaultClient.processPayment(transaction);
+            this.saveTransaction(transaction, "default");
+        } catch (Exception e) {
+            // Se falhar, processa com o fallback
+            transaction.setProcessorBy("fallback");
+            fallbackClient.processPayment(transaction);
+            this.saveTransaction(transaction, "fallback");
+        }
 
-        this.saveTransaction(transaction);
     }
 
-    private void saveTransaction(TransactionResource transaction) throws JsonProcessingException {
+    private void saveTransaction(TransactionResource transaction, String destination) throws JsonProcessingException {
 
         // Salvar transação
         long timestamp = transaction.getRequestedAt().toEpochSecond(ZoneOffset.UTC);
-        redisTemplate.opsForZSet().add("transactions", objectMapper.writeValueAsString(transaction), timestamp);
+        redisTemplate.opsForZSet().add("transactions_" + destination,
+                objectMapper.writeValueAsString(transaction), timestamp);
     }
 
     public void purgeTransactions() {
+        redisTemplate.delete("transactions_default");
+        redisTemplate.delete("transactions_fallback");
         redisTemplate.delete("transactions");
     }
 
     public PaymentsSummary getTransactionsByDateRange(LocalDateTime from, LocalDateTime to) {
         double fromTimestamp = from.toEpochSecond(ZoneOffset.UTC);
         double toTimestamp = to.toEpochSecond(ZoneOffset.UTC);
-        Set<Object> results = redisTemplate.opsForZSet().rangeByScore("transactions", fromTimestamp, toTimestamp);
+        Set<Object> resultsDefault = redisTemplate.opsForZSet()
+                .rangeByScore("transactions_default", fromTimestamp, toTimestamp);
+        Set<Object> resultsFallback = redisTemplate.opsForZSet()
+                .rangeByScore("transactions_fallback", fromTimestamp, toTimestamp);
 
-        List<TransactionResource> list = results.stream()
-                .map(obj -> {
 
+        // Otimização: processa e soma em uma única passagem
+//        BigDecimal totalAmountDefault = BigDecimal.ZERO;
+//        int countDefault = 0;
+//        BigDecimal totalAmountFallback = BigDecimal.ZERO;
+//        int countFallback = 0;
+
+
+        BigDecimal sumDefault = resultsDefault.stream()
+                .map(i -> {
                     try {
-                        return objectMapper.readValue((String) obj, TransactionResource.class);
+                        return objectMapper.readValue((String) i, TransactionResource.class);
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
+                }).map(TransactionResource::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                })
-                .collect(Collectors.toList());
-
-        List<TransactionResource> aDefault =
-                list.stream().filter(i -> i.getProcessorBy().equals("default")).collect(Collectors.toList());
-        BigDecimal totalAmountDefault = aDefault.stream()
-                .map(TransactionResource::getAmount)
+        BigDecimal sumFallback = resultsFallback.stream()
+                .map(i -> {
+                    try {
+                        return objectMapper.readValue((String) i, TransactionResource.class);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).map(TransactionResource::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
 
-        List<TransactionResource> aFallback =
-                list.stream().filter(i -> i.getProcessorBy().equals("fallback")).collect(Collectors.toList());
-        BigDecimal totalAmountFallback = aFallback.stream()
-                .map(TransactionResource::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+//        for (Object obj : results) {
+//            try {
+//                TransactionResource tr = objectMapper.readValue((String) obj, TransactionResource.class);
+//                if ("default".equals(tr.getProcessorBy())) {
+//                    totalAmountDefault = totalAmountDefault.add(tr.getAmount());
+//                    countDefault++;
+//                } else if ("fallback".equals(tr.getProcessorBy())) {
+//                    totalAmountFallback = totalAmountFallback.add(tr.getAmount());
+//                    countFallback++;
+//                }
+//            } catch (JsonProcessingException e) {
+//                // Loga ou ignora
+//            }
+//        }
 
         PaymentsSummary paymentsSummary = PaymentsSummary.builder()
-                .defaultProcessor(PaymentsSummary.Summary.builder().totalAmount(totalAmountDefault).totalRequests(aDefault.size()).build())
-                .fallback(PaymentsSummary.Summary.builder().totalAmount(totalAmountFallback).totalRequests(aFallback.size()).build())
+                .defaultProcessor(PaymentsSummary.Summary.builder()
+                        .totalAmount(sumDefault)
+                        .totalRequests(resultsDefault.size()).build())
+                .fallback(PaymentsSummary.Summary.builder()
+                        .totalAmount(sumFallback)
+                        .totalRequests(resultsFallback.size()).build())
                 .build();
-
 
         return paymentsSummary;
     }

@@ -20,7 +20,7 @@ services:
       - SPRING_THREADS_VIRTUAL_ENABLED=true
       - SPRING_THREADS_VIRTUAL_ENABLED_MANUALLY=false
       - SPRING_RESOURCES_CHAIN_ENABLED=true
-      - JAVA_OPTS=-Xms108m -Xmx128m
+      - JAVA_OPTS=-Xms80m -Xmx80m -XX:MaxMetaspaceSize=80m -XX:+UseSerialGC
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=123asd
@@ -60,7 +60,7 @@ services:
       - SPRING_THREADS_VIRTUAL_ENABLED=true
       - SPRING_THREADS_VIRTUAL_ENABLED_MANUALLY=false
       - SPRING_RESOURCES_CHAIN_ENABLED=true
-      - JAVA_OPTS=-Xms108m -Xmx128m
+      - JAVA_OPTS=-Xms80m -Xmx80m -XX:MaxMetaspaceSize=80m -XX:+UseSerialGC
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=123asd
@@ -106,7 +106,7 @@ services:
         - backend
         - payment-processor
       hostname: redis
-      command: [ "redis-server", "--requirepass", "123asd" ]
+      command: [ "redis-server", "--requirepass", "123asd", "--save", "", "--appendonly", "no" ]
       ports:
         - "6379:6379"
       ulimits:

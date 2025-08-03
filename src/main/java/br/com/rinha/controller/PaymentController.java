@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping
@@ -31,19 +33,47 @@ public class PaymentController {
 
     @PostMapping(path = "/payments", consumes = "application/json", produces = "application/json")
     public ResponseEntity<Void> newTransaction(@RequestBody @Valid TransactionResource transactionResource) throws JsonProcessingException {
-        redisTemplate.convertAndSend(QUEUE_NAME, objectMapper.writeValueAsString(transactionResource));
-        System.out.println("Thread: " + Thread.currentThread().getName() + " - " + LocalDateTime.now());
+        // Adiciona a mensagem na fila (lista) do Redis ao invés de Pub/Sub
+        redisTemplate.opsForList().leftPush(QUEUE_NAME, objectMapper.writeValueAsString(transactionResource));
+//        System.out.println("Thread: " + Thread.currentThread().getName() + " - " + LocalDateTime.now());
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
     @GetMapping("/payments-summary")
-    public ResponseEntity<PaymentsSummary> getPaymentsSummary(@RequestParam(name = "from") String from,
-                                                   @RequestParam(name = "to") String to) {
+    public ResponseEntity<?> getPaymentsSummary(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to
+    ) {
+        System.out.println("Sumary");
+        System.out.println("From: " + from);
+        System.out.println("To: " + to);
 
+        OffsetDateTime fromDate;
+        OffsetDateTime toDate;
+        try {
+            fromDate = from != null ? parseDate(from) : OffsetDateTime.MIN;
+            toDate = to != null ? parseDate(to) : OffsetDateTime.MAX;
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
         PaymentsSummary transactionsByDateRange =
-                this.service.getTransactionsByDateRange(LocalDateTime.now().minusYears(7),
-                        LocalDateTime.now().plusDays(1));
-        System.out.println("Summary!!!!");
+                this.service.getTransactionsByDateRange(
+                        fromDate.toLocalDateTime(),
+                        toDate.toLocalDateTime());
         return ResponseEntity.status(HttpStatus.OK).body(transactionsByDateRange);
+    }
+
+    private OffsetDateTime parseDate(String dateStr) {
+        if (dateStr == null) return null;
+        try {
+            return OffsetDateTime.parse(dateStr);
+        } catch (Exception e) {
+            // Tenta LocalDateTime sem offset
+            try {
+                return LocalDateTime.parse(dateStr).atOffset(ZoneOffset.UTC);
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Formato de data inválido. Use ISO 8601, ex: 2000-01-01T00:00:00 ou 2000-01-01T00:00:00Z");
+            }
+        }
     }
 }
